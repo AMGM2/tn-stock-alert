@@ -4,8 +4,8 @@ const app = express();
 app.get("/", (req, res) => res.send("OK"));
 app.get("/test-telegram", async (req, res) => {
   try {
-    const text = "Alerta de prueba desde Render";
-    const url = `https://api.telegram.org/bot${process.env.8409634111:AAHUs0utB-4u1Z3isWZ4nZ1p_VB1pIQS4TI}/sendMessage`;
+    const text = "✅ Alerta de prueba desde Render";
+    const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
 
     const r = await fetch(url, {
       method: "POST",
@@ -16,14 +16,16 @@ app.get("/test-telegram", async (req, res) => {
       })
     });
 
-    if (!r.ok) throw new Error("Telegram error");
+    const data = await r.json();
+    if (!r.ok) throw new Error(JSON.stringify(data));
 
-    res.send("Mensaje enviado a Telegram");
+    res.send("Mensaje enviado a Telegram ✅");
   } catch (e) {
     console.error(e);
-    res.status(500).send("Error enviando mensaje");
+    res.status(500).send(`Error enviando mensaje: ${e.message}`);
   }
 });
+
 
 
 const port = process.env.PORT || 3000;
