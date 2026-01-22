@@ -52,6 +52,14 @@ async function sendTelegram(text) {
   const data = await r.json();
   if (!r.ok) throw new Error(JSON.stringify(data));
 }
+app.get("/tn/install", (req, res) => {
+  const appId = process.env.TN_APP_ID;
+  const redirectUri = encodeURIComponent("https://tn-stock-alert.onrender.com/tn/callback");
+
+  const url = `https://www.tiendanube.com/apps/${appId}/authorize?redirect_uri=${redirectUri}`;
+  return res.redirect(url);
+});
+
 
 /* ======================
    RUTAS
