@@ -17,7 +17,7 @@ app.use(express.json({
 ====================== */
 
 function verifyTiendaNubeHmac(req) {
-  const secret = process.env.TIENDANUBE_APP_SECRET;
+  const secret = process.env.TN_CLIENT_SECRET;
   const header = req.get("x-linkedstore-hmac-sha256");
 
   if (!secret || !header) return false;
