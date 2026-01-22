@@ -1,18 +1,17 @@
 import express from "express";
 import crypto from "crypto";
+import fetch from "node-fetch";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 /* ======================
-   PASO 2: REDIRECT_URI EXACTO
-   (Tiene que ser idéntico al de Partners)
+   CONFIG
 ====================== */
 const REDIRECT_URI = "https://tn-stock-alert.onrender.com/tn/callback";
 
 /* ======================
-   PASO 3: LOG DE REQUESTS
-   (Para ver si Tiendanube llega o no)
+   LOG DE REQUESTS (debug)
 ====================== */
 app.use((req, res, next) => {
   console.log("REQ", req.method, req.path, req.query);
@@ -20,23 +19,24 @@ app.use((req, res, next) => {
 });
 
 // Captura raw body (necesario para HMAC)
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 /* ======================
    UTILIDADES
 ====================== */
 
 function verifyTiendaNubeHmac(req) {
-  // OJO: para webhooks NO es TN_CLIENT_SECRET.
-  // Ideal: process.env.TIENDANUBE_APP_SECRET
+  // Para webhooks, Tiendanube usa el "App Secret" (NO el client secret de OAuth)
   const secret = process.env.TIENDANUBE_APP_SECRET;
   const header = req.get("x-linkedstore-hmac-sha256");
 
-  // Mientras no tengas el secret real, podés devolver true para probar:
+  // Si todavía no tenés el secret real, podés descomentar para probar el flujo:
   // if (!secret) return true;
 
   if (!secret || !header) return false;
@@ -47,10 +47,7 @@ function verifyTiendaNubeHmac(req) {
     .digest("base64");
 
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(digest),
-      Buffer.from(header)
-    );
+    return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(header));
   } catch {
     return false;
   }
@@ -64,8 +61,8 @@ async function sendTelegram(text) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: process.env.TELEGRAM_CHAT_ID,
-      text
-    })
+      text,
+    }),
   });
 
   const data = await r.json();
@@ -79,76 +76,6 @@ async function sendTelegram(text) {
 // Healthcheck
 app.get("/", (req, res) => res.send("OK"));
 
-// Iniciar instalación OAuth (opcional, pero útil)
-app.get("/tn/install", (req, res) => {
-  const appId = process.env.TN_APP_ID;
-  const redirectUri = encodeURIComponent(REDIRECT_URI);
-
-  const url = `https://www.tiendanube.com/apps/${appId}/authorize?redirect_uri=${redirectUri}`;
-  return res.redirect(url);
-});
-const REDIRECT_URI = "https://tn-stock-alert.onrender.com/tn/callback";
-
-/* ======================
-   RUTAS
-====================== */
-
-// Healthcheck
-app.get("/", (req, res) => res.send("OK"));
-
-/* 👉 NUEVO: INSTALACIÓN APP TIENDANUBE */
-app.get("/tn/install", (req, res) => {
-  const appId = process.env.TN_APP_ID;
-
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: appId,
-    redirect_uri: REDIRECT_URI,
-  });
-
-  const url = `https://www.tiendanube.com/apps/authorize?${params.toString()}`;
-  return res.redirect(url);
-});
-
-// OAuth callback Tiendanube
-app.get("/tn/callback", async (req, res) => {
-  console.log("TN CALLBACK QUERY:", req.query); // 👈 esto
-  const { code } = req.query;
-  if (!code) return res.status(400).send("Missing code");
-  ...
-});
-
-
-  try {
-    const r = await fetch("https://www.tiendanube.com/apps/authorize/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: process.env.TN_APP_ID,
-        client_secret: process.env.TN_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: REDIRECT_URI
-      })
-    });
-
-    const data = await r.json();
-    console.log("TN TOKEN:", data);
-
-    if (!r.ok) {
-      return res.status(400).send(JSON.stringify(data));
-    }
-
-    res.send("✅ App instalada! Ya podés cerrar esta ventana.");
-  } catch (e) {
-    console.error(e);
-    res.status(500).send("OAuth error");
-  }
-});
-
-
- 
-
 // Test Telegram
 app.get("/test-telegram", async (req, res) => {
   try {
@@ -156,35 +83,63 @@ app.get("/test-telegram", async (req, res) => {
     res.send("Mensaje enviado a Telegram ✅");
   } catch (e) {
     console.error(e);
-    res.status(500).send(e.message);
+    res.status(500).send(String(e.message || e));
   }
 });
 
-// OAuth callback Tiendanube
+/**
+ * INICIAR INSTALACIÓN (OAUTH)
+ * Te manda a Tiendanube para autorizar y vuelve a /tn/callback con ?code=
+ */
+app.get("/tn/install", (req, res) => {
+  const appId = process.env.TN_APP_ID;
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: appId,
+    redirect_uri: REDIRECT_URI,
+    // state: "algo-random-opcional"
+  });
+
+  const url = `https://www.tiendanube.com/apps/authorize?${params.toString()}`;
+  return res.redirect(url);
+});
+
+/**
+ * CALLBACK OAUTH
+ * PASO 2: intercambio de code -> access_token
+ * IMPORTANTE: enviar como application/x-www-form-urlencoded
+ */
 app.get("/tn/callback", async (req, res) => {
+  console.log("TN CALLBACK QUERY:", req.query);
+
   const { code } = req.query;
   if (!code) return res.status(400).send("Missing code");
 
   try {
+    const body = new URLSearchParams({
+      client_id: process.env.TN_APP_ID,
+      client_secret: process.env.TN_CLIENT_SECRET,
+      grant_type: "authorization_code",
+      code: String(code),
+      redirect_uri: REDIRECT_URI,
+    });
+
     const r = await fetch("https://www.tiendanube.com/apps/authorize/token", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: process.env.TN_APP_ID,
-        client_secret: process.env.TN_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: REDIRECT_URI
-      })
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
     });
 
     const data = await r.json();
     console.log("TN TOKEN:", data);
 
     if (!r.ok) {
-      return res.status(400).send(JSON.stringify(data));
+      return res.status(400).send(JSON.stringify(data, null, 2));
     }
 
+    // Acá idealmente guardás access_token y user_id en DB.
+    // Por ahora, solo confirmamos que funcionó:
     res.send("✅ App instalada! Ya podés cerrar esta ventana.");
   } catch (e) {
     console.error(e);
@@ -192,20 +147,19 @@ app.get("/tn/callback", async (req, res) => {
   }
 });
 
-// Webhook Tiendanube
+// Webhook Tiendanube (ejemplo)
 app.post("/webhooks/tiendanube", async (req, res) => {
   const valid = verifyTiendaNubeHmac(req);
   if (!valid) return res.status(401).send("Invalid signature");
 
   const product = req.body?.name || "Producto";
   const variants = req.body?.variants || [];
-
-  const low = variants.filter(v => typeof v.stock === "number" && v.stock <= 2);
+  const low = variants.filter((v) => typeof v.stock === "number" && v.stock <= 2);
 
   if (low.length) {
     const msg =
       `⚠️ Stock bajo\n${product}\n` +
-      low.map(v => `• SKU ${v.sku || v.id}: ${v.stock}`).join("\n");
+      low.map((v) => `• SKU ${v.sku || v.id}: ${v.stock}`).join("\n");
 
     await sendTelegram(msg);
   }
@@ -232,7 +186,6 @@ app.post("/privacy/customers-data", (req, res) => {
 /* ======================
    START SERVER
 ====================== */
-
 app.listen(PORT, () => {
   console.log("Servidor escuchando en puerto", PORT);
 });
