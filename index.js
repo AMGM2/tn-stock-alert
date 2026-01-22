@@ -26,6 +26,41 @@ app.get("/test-telegram", async (req, res) => {
   }
 });
 
+app.get("/tn/callback", async (req, res) => {
+  const { code, state } = req.query;
+
+  console.log("TN CALLBACK QUERY:", req.query);
+
+  if (!code) {
+    return res.status(400).send("Missing code");
+  }
+
+  try {
+    const r = await fetch("https://www.tiendanube.com/apps/authorize/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.TN_APP_ID,
+        client_secret: process.env.TN_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code
+      })
+    });
+
+    const data = await r.json();
+    console.log("TN TOKEN RESPONSE:", data);
+
+    if (!r.ok) {
+      return res.status(400).send("Token error: " + JSON.stringify(data));
+    }
+
+    // data.access_token y data.user_id (store_id)
+    res.send("✅ App instalada! Ya podés cerrar esta ventana.");
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("OAuth error");
+  }
+});
 
 
 const port = process.env.PORT || 3000;
