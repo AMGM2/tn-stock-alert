@@ -87,6 +87,19 @@ app.get("/tn/install", (req, res) => {
   const url = `https://www.tiendanube.com/apps/${appId}/authorize?redirect_uri=${redirectUri}`;
   return res.redirect(url);
 });
+app.get("/tn/install", (req, res) => {
+  const appId = process.env.TN_APP_ID;
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: appId,
+    redirect_uri: REDIRECT_URI,
+    // state: "algo-random-opcional" // recomendable, pero opcional para probar
+  });
+
+  const url = `https://www.tiendanube.com/apps/authorize?${params.toString()}`;
+  return res.redirect(url);
+});
 
 // Test Telegram
 app.get("/test-telegram", async (req, res) => {
