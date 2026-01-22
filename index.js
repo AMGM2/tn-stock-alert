@@ -112,8 +112,12 @@ app.get("/tn/install", (req, res) => {
 
 // OAuth callback Tiendanube
 app.get("/tn/callback", async (req, res) => {
+  console.log("TN CALLBACK QUERY:", req.query); // 👈 esto
   const { code } = req.query;
   if (!code) return res.status(400).send("Missing code");
+  ...
+});
+
 
   try {
     const r = await fetch("https://www.tiendanube.com/apps/authorize/token", {
