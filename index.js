@@ -122,6 +122,22 @@ app.post("/webhooks/tiendanube", async (req, res) => {
 
   res.send("ok");
 });
+// PRIVACY WEBHOOKS (OBLIGATORIOS)
+
+app.post("/privacy/store-redact", (req, res) => {
+  console.log("Store redact:", req.body);
+  res.sendStatus(200);
+});
+
+app.post("/privacy/customers-redact", (req, res) => {
+  console.log("Customers redact:", req.body);
+  res.sendStatus(200);
+});
+
+app.post("/privacy/customers-data", (req, res) => {
+  console.log("Customers data request:", req.body);
+  res.sendStatus(200);
+});
 
 /* ======================
    START SERVER
