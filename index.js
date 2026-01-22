@@ -92,7 +92,9 @@ app.get("/tn/callback", async (req, res) => {
         client_id: process.env.TN_APP_ID,
         client_secret: process.env.TN_CLIENT_SECRET,
         grant_type: "authorization_code",
-        code
+        code,
+        redirect_uri: "https://tn-stock-alert.onrender.com/tn/callback"
+
       })
     });
 
