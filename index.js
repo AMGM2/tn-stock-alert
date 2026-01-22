@@ -1,9 +1,23 @@
 import express from "express";
 import crypto from "crypto";
 
-
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+/* ======================
+   PASO 2: REDIRECT_URI EXACTO
+   (Tiene que ser idéntico al de Partners)
+====================== */
+const REDIRECT_URI = "https://tn-stock-alert.onrender.com/tn/callback";
+
+/* ======================
+   PASO 3: LOG DE REQUESTS
+   (Para ver si Tiendanube llega o no)
+====================== */
+app.use((req, res, next) => {
+  console.log("REQ", req.method, req.path, req.query);
+  next();
+});
 
 // Captura raw body (necesario para HMAC)
 app.use(express.json({
@@ -17,8 +31,13 @@ app.use(express.json({
 ====================== */
 
 function verifyTiendaNubeHmac(req) {
-  const secret = process.env.TN_CLIENT_SECRET;
+  // OJO: para webhooks NO es TN_CLIENT_SECRET.
+  // Ideal: process.env.TIENDANUBE_APP_SECRET
+  const secret = process.env.TIENDANUBE_APP_SECRET;
   const header = req.get("x-linkedstore-hmac-sha256");
+
+  // Mientras no tengas el secret real, podés devolver true para probar:
+  // if (!secret) return true;
 
   if (!secret || !header) return false;
 
@@ -52,14 +71,6 @@ async function sendTelegram(text) {
   const data = await r.json();
   if (!r.ok) throw new Error(JSON.stringify(data));
 }
-app.get("/tn/install", (req, res) => {
-  const appId = process.env.TN_APP_ID;
-  const redirectUri = encodeURIComponent("https://tn-stock-alert.onrender.com/tn/callback");
-
-  const url = `https://www.tiendanube.com/apps/${appId}/authorize?redirect_uri=${redirectUri}`;
-  return res.redirect(url);
-});
-
 
 /* ======================
    RUTAS
@@ -67,6 +78,15 @@ app.get("/tn/install", (req, res) => {
 
 // Healthcheck
 app.get("/", (req, res) => res.send("OK"));
+
+// Iniciar instalación OAuth (opcional, pero útil)
+app.get("/tn/install", (req, res) => {
+  const appId = process.env.TN_APP_ID;
+  const redirectUri = encodeURIComponent(REDIRECT_URI);
+
+  const url = `https://www.tiendanube.com/apps/${appId}/authorize?redirect_uri=${redirectUri}`;
+  return res.redirect(url);
+});
 
 // Test Telegram
 app.get("/test-telegram", async (req, res) => {
@@ -93,8 +113,7 @@ app.get("/tn/callback", async (req, res) => {
         client_secret: process.env.TN_CLIENT_SECRET,
         grant_type: "authorization_code",
         code,
-        redirect_uri: "https://tn-stock-alert.onrender.com/tn/callback"
-
+        redirect_uri: REDIRECT_URI
       })
     });
 
@@ -132,8 +151,8 @@ app.post("/webhooks/tiendanube", async (req, res) => {
 
   res.send("ok");
 });
-// PRIVACY WEBHOOKS (OBLIGATORIOS)
 
+// PRIVACY WEBHOOKS (OBLIGATORIOS)
 app.post("/privacy/store-redact", (req, res) => {
   console.log("Store redact:", req.body);
   res.sendStatus(200);
