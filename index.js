@@ -87,6 +87,16 @@ app.get("/tn/install", (req, res) => {
   const url = `https://www.tiendanube.com/apps/${appId}/authorize?redirect_uri=${redirectUri}`;
   return res.redirect(url);
 });
+const REDIRECT_URI = "https://tn-stock-alert.onrender.com/tn/callback";
+
+/* ======================
+   RUTAS
+====================== */
+
+// Healthcheck
+app.get("/", (req, res) => res.send("OK"));
+
+/* 👉 NUEVO: INSTALACIÓN APP TIENDANUBE */
 app.get("/tn/install", (req, res) => {
   const appId = process.env.TN_APP_ID;
 
@@ -94,12 +104,46 @@ app.get("/tn/install", (req, res) => {
     response_type: "code",
     client_id: appId,
     redirect_uri: REDIRECT_URI,
-    // state: "algo-random-opcional" // recomendable, pero opcional para probar
   });
 
   const url = `https://www.tiendanube.com/apps/authorize?${params.toString()}`;
   return res.redirect(url);
 });
+
+// OAuth callback Tiendanube
+app.get("/tn/callback", async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send("Missing code");
+
+  try {
+    const r = await fetch("https://www.tiendanube.com/apps/authorize/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.TN_APP_ID,
+        client_secret: process.env.TN_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: REDIRECT_URI
+      })
+    });
+
+    const data = await r.json();
+    console.log("TN TOKEN:", data);
+
+    if (!r.ok) {
+      return res.status(400).send(JSON.stringify(data));
+    }
+
+    res.send("✅ App instalada! Ya podés cerrar esta ventana.");
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("OAuth error");
+  }
+});
+
+
+ 
 
 // Test Telegram
 app.get("/test-telegram", async (req, res) => {
