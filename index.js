@@ -31,6 +31,26 @@ app.use(
   })
 );
 
+app.get("/tn/test-products", async (req, res) => {
+  try {
+    const r = await fetch(
+      `https://api.tiendanube.com/v1/${TN_STORE_ID}/products`,
+      {
+        headers: {
+          Authentication: `bearer ${TN_ACCESS_TOKEN}`,
+          "User-Agent": "tn-stock-alert (arielgonzalezmaiilard@gmail.com)",
+        },
+      }
+    );
+
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error llamando a Tiendanube" });
+  }
+});
+
 /* ======================
    UTILIDADES
 ====================== */
