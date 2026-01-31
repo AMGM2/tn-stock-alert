@@ -13,7 +13,7 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("TN Stock Alert OK");
 });
-
+app.get("/health", (req, res) => res.send("ok"));
 // ======================
 // 🔔 WEBHOOK TIENDANUBE (PASO 3)
 app.post("/tn/webhook", (req, res) => {
