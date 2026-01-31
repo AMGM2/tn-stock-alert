@@ -25,10 +25,7 @@ app.post("/tn/webhook", (req, res) => {
   res.sendStatus(200);
 });
 
-// ======================
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en puerto ${PORT}`);
-});
+
 
 
 // Variables de entorno
