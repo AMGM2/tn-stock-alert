@@ -1,8 +1,35 @@
 import express from "express";
 import crypto from "crypto";
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// 👉 middleware para leer JSON (IMPORTANTE para webhooks)
+app.use(express.json());
+
+// ======================
+// ENDPOINT DE PRUEBA (ya lo tenías)
+app.get("/", (req, res) => {
+  res.send("TN Stock Alert OK");
+});
+
+// ======================
+// 🔔 WEBHOOK TIENDANUBE (PASO 3)
+app.post("/tn/webhook", (req, res) => {
+  console.log("📩 WEBHOOK RECIBIDO");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+
+  // Siempre responder 200 rápido
+  res.sendStatus(200);
+});
+
+// ======================
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en puerto ${PORT}`);
+});
+
 
 // Variables de entorno
 const TN_APP_ID = process.env.TN_APP_ID;
@@ -213,3 +240,6 @@ app.post("/privacy/customers-data", (req, res) => {
 app.listen(PORT, () => {
   console.log("Servidor escuchando en puerto", PORT);
 });
+
+
+
