@@ -7,6 +7,12 @@ const PORT = process.env.PORT || 3000;
 
 // 👉 middleware para leer JSON (IMPORTANTE para webhooks)
 app.use(express.json());
+app.post("/tn/webhook", (req, res) => {
+  console.log("✅ WEBHOOK RECIBIDO");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  return res.sendStatus(200);
+});
 
 // ======================
 // ENDPOINT DE PRUEBA (ya lo tenías)
