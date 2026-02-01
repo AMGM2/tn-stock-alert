@@ -16,7 +16,7 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => res.send("ok"));
 // ======================
 // 🔔 WEBHOOK TIENDANUBE (PASO 3)
-app.post("/tn/callback.", (req, res) => {
+app.get("/tn/callback", (req, res) => {
   console.log("📩 WEBHOOK RECIBIDO");
   console.log("Headers:", req.headers);
   console.log("Body:", req.body);
