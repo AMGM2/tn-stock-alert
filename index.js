@@ -21,6 +21,11 @@ app.get("/tn/callback", (req, res) => {
   console.log("Headers:", req.headers);
   console.log("Body:", req.body);
 
+  app.post("/tn/webhook", (req, res) => {
+  console.log("WEBHOOK", req.body);
+  res.sendStatus(200);
+});
+
   // Siempre responder 200 rápido
   res.sendStatus(200);
 });
